@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>선착순 이벤트 - 대기열</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
+  <style>
+    /* 공통 스타일 */
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Pretendard Variable", Pretendard, sans-serif; }
+    body { background-color: #F2F4F6; display: flex; justify-content: center; align-items: center; min-height: 100vh; color: #191F28; }
+    .app-container { width: 100%; max-width: 420px; background-color: #FFFFFF; min-height: 100vh; padding: 40px 24px; display: flex; flex-direction: column; }
+    @media (min-width: 480px) { .app-container { min-height: 80vh; border-radius: 24px; height: auto; box-shadow: 0 0 20px rgba(0, 0, 0, 0.05); } }
+
+    h1 { font-size: 26px; font-weight: 700; margin-bottom: 12px; line-height: 1.4; }
+    .subtitle { font-size: 17px; color: #4E5968; line-height: 1.5; margin-bottom: 40px; }
+
+    .status-card { background-color: #F9FAFB; border-radius: 20px; padding: 30px 20px; text-align: center; margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; }
+    .rank-number { font-size: 48px; font-weight: 800; color: #3182F6; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+    .rank-label { font-size: 16px; color: #8B95A1; font-weight: 500; margin-bottom: 30px; }
+
+    .progress-container { width: 100%; height: 8px; background-color: #E5E8EB; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+    .progress-bar { height: 100%; width: 0%; background-color: #3182F6; transition: width 0.5s ease; }
+
+    .btn-primary { width: 100%; background-color: #3182F6; color: white; font-size: 17px; font-weight: 600; padding: 18px; border: none; border-radius: 16px; cursor: pointer; margin-top: auto; }
+    .btn-primary:disabled { background-color: #B0B8C1; cursor: not-allowed; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <h1>선착순 쿠폰<br>이벤트 대기열</h1>
+  <p class="subtitle">현재 접속자가 많아 대기 중입니다.<br>잠시만 기다려 주세요.</p>
+
+  <div id="statusArea" class="status-card hidden">
+    <div class="rank-number" id="rankDisplay">-</div>
+    <div class="rank-label">번째 대기 중</div>
+
+    <div style="width: 100%; padding: 0 10px;">
+      <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:13px; color:#8B95A1;">
+        <span>입장 대기</span>
+        <span id="progressPercent">0%</span>
+      </div>
+    </div>
+  </div>
+
+  <button id="joinBtn" class="btn-primary" onclick="joinQueue()">대기열 입장하기</button>
+</div>
+
+<script>
+  let myUserId = null;
+  let pollingInterval = null;
+  let initialRank = 0;
+
+  async function joinQueue() {
+    const btn = document.getElementById("joinBtn");
+    btn.disabled = true;
+    btn.innerText = "진입 중...";
+
+    try {
+      const response = await fetch('/api/queue/join', { method: 'POST' });
+      const data = await response.json();
+      myUserId = data.userId;
+
+      btn.classList.add("hidden");
+      document.getElementById("statusArea").classList.remove("hidden");
+
+      // 폴링 시작
+      pollingInterval = setInterval(checkRank, 1000);
+    } catch (e) {
+      alert("입장 실패");
+      btn.disabled = false;
+    }
+  }
+
+  async function checkRank() {
+    if (!myUserId) return;
+    try {
+      const response = await fetch(`/api/queue/rank?userId=${myUserId}`);
+      const data = await response.json();
+
+      if (data.entered) {
+        clearInterval(pollingInterval);
+        // [핵심] 입장이 허용되면 페이지 이동 (userId 전달)
+        window.location.href = `/issue.html?userId=${myUserId}`;
+      } else if (data.rank === -1) {
+        clearInterval(pollingInterval);
+        alert("대기열이 만료되었습니다.");
+        location.reload();
+      } else {
+        updateProgress(data.rank);
+      }
+    } catch (e) { console.error(e); }
+  }
+
+  function updateProgress(currentRank) {
+    document.getElementById("rankDisplay").innerText = currentRank;
+    if (initialRank === 0 && currentRank > 0) initialRank = currentRank;
+    if (initialRank > 0) {
+      const percent = Math.max(0, Math.floor(((initialRank - currentRank) / initialRank) * 100));
+      document.getElementById("progressBar").style.width = `${percent}%`;
+      document.getElementById("progressPercent").innerText = `${percent}%`;
+    }
+  }
+</script>
+</body>
+</html>

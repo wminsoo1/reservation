@@ -1,0 +1,50 @@
+spring:
+
+  datasource:
+    # 로컬 실행 시 localhost 사용, 도커 실행 시는 환경변수가 덮어씀
+    url: jdbc:mysql://localhost:3306/demo?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: root
+    password: 1111
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 2  # [설정 2] DB 커넥션 풀 크기 (기본값: 10)
+      register-mbeans: true
+      connection-timeout: 6000 # 30초 대기 후 에러 (변경 불필요)
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+
+  application:
+    name: Reservation
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+server:
+  tomcat:
+    threads:
+      max: 200    # [설정 1] 톰캣 최대 2스레드 수 (기본값: 200)
+      min-spare: 200
+    mbean-registry:
+      enabled: true
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus, health, info, metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    enable:
+      hikaricp: true
+      tomcat: true
+      http: true

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>선착순 이벤트 - 발급</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
+  <style>
+    /* index.html과 동일한 스타일 유지 */
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Pretendard Variable", Pretendard, sans-serif; }
+    body { background-color: #F2F4F6; display: flex; justify-content: center; align-items: center; min-height: 100vh; color: #191F28; }
+    .app-container { width: 100%; max-width: 420px; background-color: #FFFFFF; min-height: 100vh; padding: 40px 24px; display: flex; flex-direction: column; }
+    @media (min-width: 480px) { .app-container { min-height: 80vh; border-radius: 24px; height: auto; box-shadow: 0 0 20px rgba(0, 0, 0, 0.05); } }
+
+    h1 { font-size: 26px; font-weight: 700; margin-bottom: 12px; line-height: 1.4; }
+    .subtitle { font-size: 17px; color: #4E5968; line-height: 1.5; margin-bottom: 40px; }
+
+    .coupon-card { background-color: #FFF; border: 1px solid #E5E8EB; border-radius: 20px; padding: 30px 20px; text-align: center; margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; }
+    .coupon-visual { width: 100%; max-width: 200px; margin-bottom: 20px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.1)); }
+
+    .btn-primary { width: 100%; background-color: #3182F6; color: white; font-size: 17px; font-weight: 600; padding: 18px; border: none; border-radius: 16px; cursor: pointer; margin-top: auto; }
+    .btn-success { background-color: #34C759; cursor: default; }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <h1>입장에 성공했어요!<br>쿠폰을 받아가세요 🎉</h1>
+  <p class="subtitle">오래 기다리셨습니다.<br>아래 버튼을 눌러 쿠폰을 발급받으세요.</p>
+
+  <div class="coupon-card">
+    <svg class="coupon-visual" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="200" height="120" rx="12" fill="#E8F3FF"/>
+      <circle cx="0" cy="60" r="10" fill="#FFF"/>
+      <circle cx="200" cy="60" r="10" fill="#FFF"/>
+      <path d="M100 30L100 90" stroke="#3182F6" stroke-width="2" stroke-dasharray="6 6"/>
+      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#3182F6" font-size="18" font-weight="bold">50% SALE</text>
+    </svg>
+    <div style="font-size: 15px; color: #6B7684;">선착순 한정판 쿠폰</div>
+  </div>
+
+  <button id="issueBtn" class="btn-primary" onclick="issueCoupon()">쿠폰 발급받기</button>
+</div>
+
+<script>
+  // URL에서 userId 추출
+  const urlParams = new URLSearchParams(window.location.search);
+  const userId = urlParams.get('userId');
+
+  // userId 없으면 대기열로 강제 이동 (보안)
+  if (!userId) {
+    alert("정상적인 접근이 아닙니다.");
+    window.location.href = "/index.html";
+  }
+
+  async function issueCoupon() {
+    const btn = document.getElementById("issueBtn");
+    btn.disabled = true;
+    btn.innerText = "발급 처리 중...";
+
+    try {
+      const response = await fetch('/api/coupon/issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId })
+      });
+
+      if (response.ok) {
+        btn.innerText = "발급 완료!";
+        btn.classList.add("btn-success");
+        alert("축하합니다! 쿠폰이 발급되었습니다.");
+      } else {
+        const msg = await response.text();
+        alert("발급 실패: " + msg);
+        // 실패 시 다시 대기열로 보낼지, 버튼을 활성화할지 정책 결정
+        btn.disabled = false;
+        btn.innerText = "쿠폰 발급받기";
+      }
+    } catch (e) {
+      alert("오류 발생");
+      btn.disabled = false;
+      btn.innerText = "쿠폰 발급받기";
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,12 +1,17 @@
 package com.example.Reservation.service;
 
+import com.example.Reservation.domain.Coupon;
+import com.example.Reservation.event.CouponIssuedEvent;
 import com.example.Reservation.event.OutboxEvent;
+import com.example.Reservation.repository.CouponRepository;
 import com.example.Reservation.repository.OutboxRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +28,8 @@ public class CouponService {
     private final StringRedisTemplate redisTemplate;
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
+    private final CouponRepository couponRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     // Lua Script (Bean으로 등록된 것을 주입받거나 직접 생성)
     private final RedisScript<Long> issueCouponScript;
@@ -112,6 +119,47 @@ public class CouponService {
         }
 
         log.info("테스트 요청 완료 (지연 {}ms): {}", sleepTimeMillis, userId);
+    }
+
+    @Transactional
+    public void processCouponIssue(String userId, Acknowledgment ack) {
+        // [로그] 멱등성 검사 시작
+        log.info("🔍 [Idempotency Check] 유저 {} 의 중복 발급 여부 확인 중...", userId);
+
+        if (couponRepository.existsByUserId(userId)) {
+            log.warn("⚠️ [Idempotency Alert] 이미 쿠폰이 발급된 유저입니다. DB 저장을 스킵하고 오프셋 커밋만 시도합니다. userId: {}", userId);
+
+            // 💡 중요: DB 저장은 스킵하더라도, 저번에 실패했던 카프카 커밋은 다시 해줘야 하므로 이벤트는 발행합니다.
+            eventPublisher.publishEvent(new CouponIssuedEvent(ack, userId));
+            return;
+        }
+
+        // 1. 실제 쿠폰 엔티티 저장
+        log.info("💾 [Step 1] 쿠폰 엔티티 저장 시작: userId={}", userId);
+        Coupon coupon = Coupon.builder()
+                .userId(userId)
+                .status("ISSUED")
+                .issuedAt(LocalDateTime.now())
+                .build();
+        couponRepository.save(coupon);
+        log.info("✅ [Step 1] 쿠폰 엔티티 저장 완료");
+
+        // 2. Outbox 테이블 업데이트
+        log.info("📝 [Step 2] Outbox 상태 업데이트 시작 (PUBLISHED -> COMPLETED): aggregateId={}", userId);
+        outboxRepository.findAll().stream()
+                .filter(e -> e.getAggregateId().equals(userId) && e.getStatus() == OutboxEvent.EventStatus.PUBLISHED)
+                .findFirst()
+                .ifPresentOrElse(
+                        outboxEvent -> {
+                            outboxEvent.markAsCompleted();
+                            log.info("🎯 [Step 2] OutboxEvent 상태 COMPLETED로 업데이트 완료");
+                        },
+                        () -> log.warn("❓ [Step 2] 업데이트할 OutboxEvent를 찾지 못했습니다. aggregateId={}", userId)
+                );
+
+        // 3. [핵심] 트랜잭션 성공 후 실행될 이벤트를 발행
+        log.info("📢 [Step 3] 트랜잭션 커밋 후 오프셋 처리를 위한 이벤트 발행: userId={}", userId);
+        eventPublisher.publishEvent(new CouponIssuedEvent(ack, userId));
     }
 
 }

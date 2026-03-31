@@ -27,6 +27,24 @@ spring:
       host: localhost
       port: 6379
 
+  kafka:
+    bootstrap-servers: localhost:9092 # 카프카 브로커 주소 (도커로 띄운 포트)
+
+    listener:
+      ack-mode: manual_immediate
+
+    # [컨슈머(수신자) 설정]
+    consumer:
+      group-id: coupon-worker-group # 컨슈머 그룹 ID
+      auto-offset-reset: earliest   # 초기 오프셋 설정 (가장 처음부터 읽음)
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+    # [프로듀서(발송자) 설정]
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
 server:
   tomcat:
     threads:

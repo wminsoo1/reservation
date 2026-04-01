@@ -40,7 +40,7 @@
 
 무의미한 DB 조회를 막기 위해 Redis ZSet을 활용하여 유저를 줄 세우고, 백그라운드 스케줄러가 시스템이 수용 가능한 인원(N명)에게만 순차적으로 입장 권한을 부여하여 트래픽을 통제했습니다.
 
-<img src="image_url_for_phase1_diagram.png" alt="대기열 아키텍처" width="100%">
+<img src="https://github.com/wminsoo1/reservation/blob/main/redis%20%EB%8C%80%EA%B8%B0%EC%97%B4.png" alt="대기열 아키텍처" width="100%">
 
 **Key Implementation:**
 - 프론트엔드에서 1초마다 폴링하며 대기 순위 확인
@@ -51,7 +51,7 @@
 
 대기열을 통과한 유저의 발급 요청은 Outbox 패턴과 Kafka를 거쳐 백그라운드 Worker가 비동기로 처리하도록 위임하여 시스템의 처리량(TPS)을 극대화했습니다.
 
-<img src="image_url_for_phase2_diagram.png" alt="쿠폰 발급 아키텍처" width="100%">
+<img src="https://github.com/wminsoo1/reservation/blob/main/%EC%BF%A0%ED%8F%B0%20%EB%B0%9C%EA%B8%89.png" alt="쿠폰 발급 아키텍처" width="100%">
 
 **Key Implementation:**
 - **Redis Lua Script:** 재고 차감과 중복 검증을 원자적으로 처리하여 초과 발급 원천 차단

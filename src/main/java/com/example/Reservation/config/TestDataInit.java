@@ -1,7 +1,10 @@
 package com.example.Reservation.config;
 
+import com.example.Reservation.domain.Product;
+import com.example.Reservation.repository.ProductRepository;
 import com.example.Reservation.service.QueueService;
 import java.time.Duration;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -17,6 +20,7 @@ public class TestDataInit implements CommandLineRunner {
 
     private final QueueService queueService;
     private final StringRedisTemplate redisTemplate;
+    private final ProductRepository productRepository;
 
     private static final String COUPON_COUNT_KEY = "event:coupon:count";
 
@@ -45,5 +49,36 @@ public class TestDataInit implements CommandLineRunner {
         }
 
         log.info("========== [TEST] 가상 대기 인원 등록 완료 ==========");
+
+        // --- [추가된 부분] 상품 마스터 더미데이터 삽입 ---
+        if (productRepository.count() == 0) {
+            productRepository.saveAll(List.of(
+                    Product.builder()
+                            .storeName("원조 장충동 할매 족발").rating(4.9).reviewCount("1,240+")
+                            .menuName("족발(대) + 막국수 세트")
+                            .imageUrl("https://images.unsplash.com/photo-1598514982205-f36b96d1e8d4?q=80&w=600&auto=format&fit=crop")
+                            .originalPrice(45000).discountPrice(22500).discountRate(50)
+                            .build(),
+                    Product.builder()
+                            .storeName("파리크라상 강남점").rating(4.8).reviewCount("850+")
+                            .menuName("마감 빵 랜덤박스 (5~6구)")
+                            .imageUrl("https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=600&auto=format&fit=crop")
+                            .originalPrice(20000).discountPrice(6000).discountRate(70)
+                            .build(),
+                    Product.builder()
+                            .storeName("바삭바삭 옛날통닭").rating(4.7).reviewCount("530+")
+                            .menuName("후라이드 치킨 1마리")
+                            .imageUrl("https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?q=80&w=600&auto=format&fit=crop")
+                            .originalPrice(16000).discountPrice(9600).discountRate(40)
+                            .build(),
+                    Product.builder()
+                            .storeName("스시야 (Sushi Ya)").rating(4.9).reviewCount("2,100+")
+                            .menuName("오늘의 모둠초밥 12p")
+                            .imageUrl("https://images.unsplash.com/photo-1579871494447-9811cf80d66c?q=80&w=600&auto=format&fit=crop")
+                            .originalPrice(22000).discountPrice(15400).discountRate(30)
+                            .build()
+            ));
+            log.info("✔ 배민 마감 특가 상품 더미데이터 4건 세팅 완료");
+        }
     }
 }

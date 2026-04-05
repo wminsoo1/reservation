@@ -30,6 +30,9 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092 # 카프카 브로커 주소 (도커로 띄운 포트)
 
+    listener:
+      ack-mode: manual_immediate
+
     # [컨슈머(수신자) 설정]
     consumer:
       group-id: coupon-worker-group # 컨슈머 그룹 ID

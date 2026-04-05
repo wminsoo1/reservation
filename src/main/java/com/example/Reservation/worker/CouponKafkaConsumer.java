@@ -4,11 +4,13 @@ import com.example.Reservation.domain.Coupon;
 import com.example.Reservation.event.OutboxEvent;
 import com.example.Reservation.repository.CouponRepository;
 import com.example.Reservation.repository.OutboxRepository;
+import com.example.Reservation.service.CouponService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +24,11 @@ public class CouponKafkaConsumer {
     private final CouponRepository couponRepository;
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
+    private final CouponService couponService;
 
     @KafkaListener(topics = "coupon-issue-request", groupId = "coupon-worker-group")
     @Transactional
-    public void consumeCouponRequest(String message) {
+    public void consumeCouponRequest(String message, Acknowledgment ack) {
         try {
             // 1. 카프카 메시지(JSON) 파싱
             JsonNode payload = objectMapper.readTree(message);
@@ -38,21 +41,7 @@ public class CouponKafkaConsumer {
             Thread.sleep(5000);
 
             // 3. 실제 쿠폰 엔티티 저장
-            Coupon coupon = Coupon.builder()
-                    .userId(userId)
-                    .status("ISSUED")
-                    .issuedAt(LocalDateTime.now())
-                    .build();
-            couponRepository.save(coupon);
-
-            // 4. Outbox 테이블 최종 업데이트 (COMPLETED)
-            outboxRepository.findAll().stream() //
-                    .filter(e -> e.getAggregateId().equals(userId) && e.getStatus() == OutboxEvent.EventStatus.PUBLISHED)
-                    .findFirst()
-                    .ifPresent(outboxEvent -> {
-                        outboxEvent.markAsCompleted();
-                        log.info("🎯 [Kafka Consumer] OutboxEvent 상태 COMPLETED 로 업데이트 완료!");
-                    });
+            couponService.processCouponIssue(userId, ack);
 
             log.info("🎉 [Kafka Consumer] 쿠폰 발급 최종 완료: {}", userId);
 

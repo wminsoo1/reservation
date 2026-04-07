@@ -26,6 +26,8 @@ spring:
     redis:
       host: localhost
       port: 6379
+    mongodb:
+      uri: mongodb://localhost:27017/delivery_db
 
   kafka:
     bootstrap-servers: localhost:9092 # 카프카 브로커 주소 (도커로 띄운 포트)

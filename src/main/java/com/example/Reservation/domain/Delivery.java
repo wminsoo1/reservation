@@ -1,11 +1,13 @@
 package com.example.Reservation.domain;
 
+import com.example.Reservation.event.DeliveryUpdatedEvent;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.domain.AbstractAggregateRoot;
 
 @Entity
 @Getter
@@ -13,11 +15,14 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "deliveries")
-public class Delivery {
+public class Delivery extends AbstractAggregateRoot<Delivery> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Version
+    private Long version;
 
     private String trackingNumber; // 운송장 번호
     private String receiverName;   // 수령인
@@ -27,13 +32,11 @@ public class Delivery {
     @Enumerated(EnumType.STRING)
     private DeliveryStatus status; // 현재 상태
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "rider_id")
-    private Rider rider; // 담당 기사
+    @Column(name = "rider_id")
+    private Long riderId;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id")
-    private Order order; // 배송할 주문 내역
+    @Column(name = "order_id")
+    private Long orderId;
 
     private LocalDateTime updatedAt; // 버전 관리를 위한 타임스탬프
 
@@ -46,6 +49,8 @@ public class Delivery {
         this.address = newAddress;
         this.deliveryMemo = newMemo;
         this.updatedAt = LocalDateTime.now();
+
+        registerEvent(DeliveryUpdatedEvent.of(this.id,  "INFO_UPDATED"));
     }
 
     // 상태 전이 로직 (도메인 내부에서 엄격하게 관리)
@@ -57,6 +62,8 @@ public class Delivery {
         }
         this.status = newStatus;
         this.updatedAt = LocalDateTime.now();
+
+        registerEvent(DeliveryUpdatedEvent.of(this.id,  "STATUS_CHANGED"));
     }
 
     public enum DeliveryStatus {

@@ -25,28 +25,16 @@ public class DeliveryService {
     private final ObjectMapper objectMapper;
 
     @Transactional
-    public void changeDeliveryStatus(Long deliveryId, DeliveryStatus newStatus) throws Exception {
-        // 1. MySQL 원본 상태 업데이트
+    public void changeDeliveryStatus(Long deliveryId, DeliveryStatus newStatus) {
+        // 1. 엔티티 조회
         Delivery delivery = deliveryRepository.findById(deliveryId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 운송장입니다."));
 
+        // 2. 도메인 메서드 호출 (내부에서 registerEvent 실행)
         delivery.updateStatus(newStatus);
-        log.info("📦 DB: {}번 택배 상태 변경 완료 -> {}", deliveryId, newStatus);
 
-        // 2. 제로 페이로드 Outbox 이벤트 발행 (상태값 없이 ID만 전송)
-        Map<String, Long> payloadMap = new HashMap<>();
-        payloadMap.put("deliveryId", deliveryId);
-        String zeroPayload = objectMapper.writeValueAsString(payloadMap);
-
-        OutboxEvent event = OutboxEvent.builder()
-                .aggregateId(String.valueOf(deliveryId))
-                .aggregateType("DELIVERY_STATUS_CHANGE")
-                .topic("delivery-notification-topic") // 알림톡 발송용 토픽
-                .payload(zeroPayload)
-                .status(OutboxEvent.EventStatus.READY)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        outboxRepository.save(event);
+        // 3. 리포지토리에 저장 (이때 스프링 데이터 JPA가 등록된 이벤트를 발행)
+        // 별도로 outboxRepository.save()를 명시적으로 호출할 필요가 없습니다.
+        deliveryRepository.save(delivery);
     }
 }

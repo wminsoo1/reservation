@@ -23,6 +23,34 @@ services:
     ports:
       - "6380:6379"
 
+  # --- MongoDB 추가 시작 ---
+  mongodb:
+    image: mongo:latest
+    container_name: my-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=1111
+      - MONGO_INITDB_DATABASE=demo_mongo # 초기 생성할 DB
+    volumes:
+      - mongo_data:/data/db
+
+  # MongoDB GUI 툴 (선택 사항, 필요 없으면 삭제 가능)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: my-mongo-express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=1111
+      - ME_CONFIG_MONGODB_URL=mongodb://admin:1111@mongodb:27017/
+    depends_on:
+      - mongodb
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.3.0
     container_name: my-zookeeper
@@ -82,3 +110,6 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin # 초기 비밀번호 설정
     depends_on:
       - prometheus
+
+volumes:
+  mongo_data:
